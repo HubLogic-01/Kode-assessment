@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FieldOps Engine</title>
+  <script type="module" crossorigin src="/app/assets/index-lUYlCneI.js"></script>
+  <link rel="stylesheet" crossorigin href="/app/assets/index-BCzzJvqb.css">
+</head>
+<body style="margin:0">
+  <div id="root"></div>
+<script>// FieldOps Settings Auto-Save
+// Adds a floating save button for brand settings
+(function(){
+  const SB_URL = 'https://qprltoatgvvshhuooioq.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwcmx0b2F0Z3Z2c2hodW9vaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NzQ0ODcsImV4cCI6MjEwMjQ1MDQ4N30.JOSEhz9Lxi6f1AhX43mwOMNEB8n95F_b68gAGXoC8_w';
+  
+  // Watch for settings page and add save functionality
+  let lastIndustry = '';
+  const observer = new MutationObserver(() => {
+    // Find the Industry input (our injected field)
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach(input => {
+      const label = input.closest('div')?.querySelector('label, .tiny');
+      if (!label) return;
+      const labelText = label.textContent?.trim();
+      
+      // Add onblur save to Company name, Tagline, Logo initials, Industry fields
+      if (['Company name','Tagline','Logo initials','Industry'].includes(labelText) && !input.dataset.autoSave) {
+        input.dataset.autoSave = '1';
+        input.addEventListener('blur', async function() {
+          const fieldMap = {
+            'Company name': 'name',
+            'Tagline': 'tagline', 
+            'Logo initials': 'mark',
+            'Industry': 'industry'
+          };
+          const col = fieldMap[labelText];
+          if (!col) return;
+          
+          // Get tenant_id from the session
+          const session = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.includes('auth-token'))||'{}') || '{}');
+          const token = session?.access_token || SB_KEY;
+          
+          // Get tenant ID
+          try {
+            const tr = await fetch(`${SB_URL}/rest/v1/tenants?select=id&limit=1`, {
+              headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` }
+            });
+            const tenants = await tr.json();
+            if (!tenants?.[0]?.id) return;
+            
+            const body = {};
+            body[col] = input.value;
+            
+            await fetch(`${SB_URL}/rest/v1/tenants?id=eq.${tenants[0].id}`, {
+              method: 'PATCH',
+              headers: { 
+                apikey: SB_KEY, 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              },
+              body: JSON.stringify(body)
+            });
+            
+            // Brief visual feedback
+            const orig = input.style.borderColor;
+            input.style.borderColor = '#16A34A';
+            setTimeout(() => input.style.borderColor = orig, 800);
+          } catch(e) { console.error('Auto-save failed:', e); }
+        });
+      }
+    });
+  });
+  
+  // Start observing once DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => observer.observe(document.body, { childList: true, subtree: true }));
+  } else {
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+})();
+</script>
+</body>
+</html>
